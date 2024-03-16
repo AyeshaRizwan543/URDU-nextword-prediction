@@ -19,3 +19,48 @@ Deployment: The trained LSTM model is deployed as a web application or API, allo
 Documentation: Comprehensive documentation is provided, including instructions for dataset collection, data preprocessing, model training, evaluation, and deployment. Additionally, we describe the architecture and implementation details of the LSTM model.
 
 Future Work: We discuss potential enhancements and extensions to the project, such as incorporating attention mechanisms, exploring alternative neural network architectures, and expanding the dataset for improved performance.
+code for this 
+!pip install tensorflow numpy sklearn
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.utils import to_categorical
+import numpy as np
+
+# Load your Urdu text dataset
+with open('/content/drive/MyDrive/urdutext/urdu_sentences_dataset.csv', 'r', encoding='utf-8') as file:
+    urdu_text = file.read()
+
+# Tokenize the text
+tokenizer = Tokenizer(char_level=False)
+tokenizer.fit_on_texts([urdu_text])
+total_words = len(tokenizer.word_index) + 1
+
+# Convert text to sequences of integers
+input_sequences = []
+for line in urdu_text.split('\n'):
+    token_list = tokenizer.texts_to_sequences([line])[0]
+    for i in range(1, len(token_list)):
+        n_gram_sequence = token_list[:i+1]
+        input_sequences.append(n_gram_sequence)
+
+# Pad sequences
+max_sequence_len = max([len(x) for x in input_sequences])
+input_sequences = np.array(pad_sequences(input_sequences, maxlen=max_sequence_len, padding='pre'))
+
+# Create predictors and label
+predictors, label = input_sequences[:,:-1],input_sequences[:,-1]
+label = to_categorical(label, num_classes=total_words)
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
+
+model = Sequential([
+    Embedding(total_words, 100, input_length=max_sequence_len-1),
+    LSTM(150, return_sequences=True),
+    Dropout(0.2),
+    LSTM(100),
+    Dense(total_words, activation='softmax')
+])
+
+# Compile the model
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+history = model.fit(predictors, label, epochs=100, verbose=1)
